@@ -13,7 +13,7 @@ int			ft_copyindex(char **dst, char *src, char c)
 	i = -1;
 	count = 0;
 	while (src[++i] && src[i] != c)
-	pos = i;
+		pos = i;
 	ft_strncpy(*dst, src, i);
 	return (pos);
 }
@@ -43,7 +43,9 @@ int						get_next_line(const int fd, char **line)
 	int					ret;
 	t_list				*curr;
 
-	if ((fd < 0 || line == NULL || read(fd, buf, 0) < 0))
+	if ((fd < 0 || line == NULL))
+		return (-1);
+	if (!(buf = ft_strnew(BUFF_SIZE + 1)))
 		return (-1);
 	curr = get_correct_file(&file, fd);
 	MALLCHECK((*line = ft_strnew(1)));
@@ -51,10 +53,10 @@ int						get_next_line(const int fd, char **line)
 	{
 		buf[ret] = '\0';
 		MALLCHECK((curr->content = ft_strjoin(curr->content, buf)));
-		free(buf);
 		if (ft_strchr(buf, '\n'))
 			break ;
 	}
+	free(buf);
 	if (ret < BUFF_SIZE && !ft_strlen(curr->content))
 		return (0);
 	i = ft_copyindex(line, curr->content, '\n');
