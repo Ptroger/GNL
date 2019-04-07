@@ -1,11 +1,8 @@
 #ifndef GET_NEXT_LINE_H
+
+#include "libft/libft.h"
 # define GET_NEXT_LINE_H
-# include <stdlib.h>
-# include <unistd.h>
-
-# define BUFF_SIZE 42
-
-# define MALLCHECK(x) if (!x) return (-1);
-
-int		get_next_line(const int fd, char **line);
+# define MAX_FD 256
+# define BUFF_SIZE 1000
+int		get_next_line(int const fd, char **line);
 #endif

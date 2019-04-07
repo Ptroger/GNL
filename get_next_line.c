@@ -1,67 +1,89 @@
-#include "get_next_line.h"
-#include <unistd.h>
-#include <stdio.h>
-#include "libft/libft.h"
 #include <fcntl.h>
+#include <stdio.h>
+#include "get_next_line.h"
 
-int			ft_copyindex(char **dst, char *src, char c)
+static void		join_stk(char **str, char *stk, int ret)
 {
-	int		i;
-	int		count;
-	int		pos;
+	char *ptr;
 
-	i = -1;
-	count = 0;
-	while (src[++i] && src[i] != c)
-		pos = i;
-	ft_strncpy(*dst, src, i);
-	return (pos);
+	stk[ret] = '\0';
+	ptr = *str;
+	*str = ft_strjoin(*str, stk);
+	ft_strdel(&ptr);
 }
 
-static t_list			*get_correct_file(t_list **file, int fd)
+int				get_next_line(int const fd, char **line)
 {
-	t_list				*tmp;
+	int			len;
+	static char	*str[MAX_FD];
+	char		*ptr;
+	char		*stk;
+	int			ret;
 
-	tmp = *file;
-	while (tmp)
-	{
-		if ((int)tmp->content_size == fd)
-			return (tmp);
-		tmp = tmp->next;
-	}
-	tmp = ft_lstnew("\0", fd);
-	ft_lstadd(file, tmp);
-	tmp = *file;
-	return (tmp);
-}
-
-int						get_next_line(const int fd, char **line)
-{
-	char				*buf;
-	static t_list		*file;
-	int					i;
-	int					ret;
-	t_list				*curr;
-
-	if ((fd < 0 || line == NULL))
+	if (fd < 0 || BUFF_SIZE <= 0 || !line || !(stk = ft_strnew(BUFF_SIZE + 1)))
 		return (-1);
-	if (!(buf = ft_strnew(BUFF_SIZE + 1)))
+	str[fd] = !str[fd] ? ft_strnew(1) : str[fd];
+	while (!(ft_strchr(str[fd], '\n')) && (ret = read(fd, stk, BUFF_SIZE)) > 0)
+		join_stk(&str[fd], stk, ret);
+	free(stk);
+	if (ret == -1)
 		return (-1);
-	curr = get_correct_file(&file, fd);
-	MALLCHECK((*line = ft_strnew(1)));
-	while ((ret = read(fd, buf, BUFF_SIZE)))
+	if (ret == 0 && !(ft_strchr(str[fd], '\n')))
 	{
-		buf[ret] = '\0';
-		MALLCHECK((curr->content = ft_strjoin(curr->content, buf)));
-		if (ft_strchr(buf, '\n'))
-			break ;
+		*line = str[fd];
+		str[fd] = NULL;
+		return (((*line)[0] == '\0') ? 0 : 1);
 	}
-	free(buf);
-	if (ret < BUFF_SIZE && !ft_strlen(curr->content))
-		return (0);
-	i = ft_copyindex(line, curr->content, '\n');
-	(i < (int)ft_strlen(curr->content))
-		? curr->content += (i + 1)
-		: ft_strclr(curr->content);
+	len = ft_strchr(str[fd], '\n') - str[fd];
+	*line = ft_strsub(str[fd], 0, len);
+	ptr = str[fd];
+	str[fd] = ft_strdup(ft_strchr(str[fd], '\n') + 1);
+	ft_strdel(&ptr);
 	return (1);
+}
+
+int	main(int argc, char ** argv)
+{
+	int		fd;
+	int		fd2;
+	char	*line;
+	pid_t	child;
+	char	n = '\n';
+
+	if (argc < 2)
+	{
+		printf("Usage %s <filename>\n", argv[0]);
+		return (1);
+	}
+	fd = open(argv[1], O_RDONLY);
+	fd2 = open("me.txt", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	if (fd == -1 || fd2 == -1)
+	{
+		perror("open");
+		close(fd);
+		close(fd2);
+		return (-1);
+	}
+	while (get_next_line(fd, &line) == 1)
+	{
+		write(fd2, line, strlen(line));
+		write(fd2, &n, 1);					// attention si le fichier test n a pas de \n et que ca affiche une erreur c'est normal
+		free(line);							// vous inquietez pas
+	}
+	close(fd);
+	close(fd2);
+	child = fork();
+	if (child == 0)
+	{
+		char	*arg[] = {"/usr/bin/diff", NULL, "me.txt", NULL};
+
+		arg[1] = argv[1];
+		execve(arg[0], arg, NULL);
+		exit(0);
+	}
+	else
+		wait(NULL); // bad code I know ... but it's not the project
+	(void)argc;
+	(void)argv;
+	return (0);
 }
